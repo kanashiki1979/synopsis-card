@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>あらすじカード作成</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  body {
+    font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: #f4f1ea;
+    padding: 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px;
+  }
+  h1 { width: 100%; font-size: 18px; }
+
+  #form-area { width: 280px; }
+  #form-area label {
+    display: block;
+    margin-top: 12px;
+    font-size: 13px;
+    color: #555;
+  }
+  #form-area input[type="text"],
+  #form-area textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px;
+    font-size: 14px;
+    margin-top: 4px;
+  }
+  #inputSynopsis.error {
+    border: 2px solid #c0392b;
+    outline: none;
+  }
+  #charCount {
+    font-size: 12px;
+    color: #888;
+    text-align: right;
+    margin-top: 2px;
+  }
+  #charCount.over {
+    color: #c0392b;
+    font-weight: bold;
+  }
+  #synopsisErrorMsg {
+    font-size: 12px;
+    color: #c0392b;
+    margin-top: 4px;
+    display: none; /* エラー時にJSでdisplay:blockに切り替える */
+  }
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 14px;
+  }
+  .checkbox-row label {
+    margin: 0;
+    font-size: 13px;
+    color: #333;
+  }
+  .color-row {
+    display: flex;
+    gap: 16px;
+  }
+  .color-row > div {
+    flex: 1;
+  }
+  .color-row label {
+    display: block;
+    font-size: 13px;
+    color: #555;
+    margin-bottom: 4px;
+  }
+  input[type="color"] {
+    width: 100%;
+    height: 32px;
+    padding: 0;
+    border: 1px solid #ccc;
+    cursor: pointer;
+  }
+
+  /* 右側:カードのプレビューエリア全体 */
+  #preview-area {
+    width: 100%;
+    max-width: 400px;
+    margin-top: 48px;
+    align-self: flex-start; /* 親(body)のflex stretchでこのブロックごと引き伸ばされないようにする */
+  }
+  #preview-label {
+    font-size: 13px;
+    font-weight: bold;
+    color: #555;
+    text-align: right;
+    margin-bottom: 8px;
+  }
+
+  canvas {
+    border: 1px solid #ccc;
+    background: #fff;
+    cursor: grab;
+    touch-action: none;
+    /* 内部サイズ(400x560)の縦横比を必ず保ったまま、
+       画面の幅に合わせて縮小表示されるようにする。
+       これがないと、表示環境によってはカード全体が
+       縦横比を無視して引き伸ばされてしまうことがある */
+    width: 100%;
+    height: auto;
+    aspect-ratio: 400 / 560;
+    /* 親(body)がflexboxで、初期設定だと子要素を縦方向に
+       引き伸ばそうとする(align-items: stretch)。
+       それを無視して、本来の高さ(aspect-ratioで決まる高さ)
+       だけを使うように指定する */
+    align-self: flex-start;
+  }
+  canvas.dragging {
+    cursor: grabbing;
+  }
+
+  #download-area button {
+    padding: 10px 12px;
+    font-size: 13px;
+    border: 1px solid #999;
+    background: #fff;
+    color: #333;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  #download-area button:hover {
+    background: #eee;
+  }
+  #download-area button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+</style>
+</head>
+<body>
+
+<h1>あらすじカード作成</h1>
+
+<div id="form-area">
+  <label>タイトル
+    <input type="text" id="inputTitle" value="">
+  </label>
+
+  <label>登場人物(CP名)
+    <input type="text" id="inputChar" value="">
+  </label>
+
+  <label>あらすじ(140文字・6行まで)
+    <textarea id="inputSynopsis" rows="6"></textarea>
+  </label>
+  <div id="charCount">0 / 140 文字</div>
+  <div id="synopsisErrorMsg">文字数または行数の上限を超えています。カードは生成できません。あらすじを短くしてください。</div>
+
+  <label>サークル名
+    <input type="text" id="inputCircle" value="">
+  </label>
+
+  <div class="genre-row" style="margin-top:14px;">
+    <label style="display:block; font-size:13px; color:#555; margin-bottom:4px;">形態</label>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:#333; margin:0;">
+        <input type="radio" name="inputGenre" value="" checked>［表示なし］
+      </label>
+      <div style="display:flex; gap:14px; flex-wrap:wrap;">
+        <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:#333; margin:0;">
+          <input type="radio" name="inputGenre" value="小説">小説
+        </label>
+        <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:#333; margin:0;">
+          <input type="radio" name="inputGenre" value="マンガ">マンガ
+        </label>
+        <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:#333; margin:0;">
+          <input type="radio" name="inputGenre" value="イラスト集">イラスト集
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="checkbox-row">
+    <input type="checkbox" id="inputR18">
+    <label for="inputR18">R18作品</label>
+  </div>
+
+  <label>画像を選ぶ
+    <input type="file" id="inputImage" accept="image/*">
+  </label>
+
+  <label>拡大率(中央が原寸フィット)
+    <input type="range" id="inputZoom" min="0.5" max="1.5" step="0.01" value="1">
+  </label>
+
+  <label>フォント
+    <select id="inputFont">
+      <option value="'Noto Sans JP', sans-serif">ゴシック体</option>
+      <option value="'Noto Serif JP', serif">明朝体</option>
+    </select>
+  </label>
+
+  <p style="font-size:12px; color:#888; margin-top:6px;">
+    画像はプレビュー上でドラッグすると位置を調整できます。
+  </p>
+
+  <div class="color-row" style="margin-top:16px;">
+    <div>
+      <label>カード背景色</label>
+      <input type="color" id="inputCardColor" value="#ffffff">
+    </div>
+    <div>
+      <label>文字色</label>
+      <input type="color" id="inputFontColor" value="#222222">
+    </div>
+  </div>
+</div>
+
+<div id="preview-area">
+  <div id="preview-label">プレビュー</div>
+  <canvas id="cardCanvas" width="400" height="560"></canvas>
+
+  <div id="download-area" style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
+    <button id="btnDownloadSingle" type="button">カード画像をダウンロード(PNG)</button>
+  </div>
+</div>
+
+<script>
+  const canvas = document.getElementById("cardCanvas");
+  const ctx = canvas.getContext("2d");
+  // 描画関数はこのactiveCtxに向けて描く。通常はプレビュー用ctxだが、
+  // 高解像度で書き出す時だけ一時的にオフスクリーンcanvasのctxに差し替える
+  let activeCtx = ctx;
+
+  // カードのデザイン上の論理サイズ(常にこの座標系で描く)。
+  // 実際に書き出す解像度はactiveCtxにかけるスケール倍率で変わる
+  const CARD_WIDTH = 400;
+  const CARD_HEIGHT = 560;
+
+  const inputTitle = document.getElementById("inputTitle");
+  const inputChar = document.getElementById("inputChar");
+  const inputSynopsis = document.getElementById("inputSynopsis");
+  const inputCircle = document.getElementById("inputCircle");
+  const inputR18 = document.getElementById("inputR18");
+  const inputGenre = document.getElementsByName("inputGenre");
+  const inputImage = document.getElementById("inputImage");
+  const inputZoom = document.getElementById("inputZoom");
+  const inputFont = document.getElementById("inputFont");
+  const inputCardColor = document.getElementById("inputCardColor");
+  const inputFontColor = document.getElementById("inputFontColor");
+  const charCountEl = document.getElementById("charCount");
+  const synopsisErrorMsgEl = document.getElementById("synopsisErrorMsg");
+  const btnDownloadSingle = document.getElementById("btnDownloadSingle");
+
+  let dragOffsetX = 0;
+  let dragOffsetY = 0;
+  let uploadedImage = null;
+
+  // ---- レイアウトの基準値 ----
+  const PADDING = 20;
+  const IMAGE_AREA_RATIO = 3 / 5;
+  const SYNOPSIS_FONT_SIZE = 13;
+  const SYNOPSIS_LINE_HEIGHT = 18;
+
+  // ---- 今回追加:あらすじの固定ルール ----
+  const SYNOPSIS_MAX_CHARS = 140; // Xと同じ文字数上限
+  const SYNOPSIS_MAX_LINES = 6;   // レイアウト上、6行までしか置き場所がない
+
+  // ---- 現在選択されているフォントファミリーを返す ----
+  function fontFamily() {
+    return inputFont.value;
+  }
+
+  // ---- 現在選択されているジャンルを返す ----
+  function selectedGenre() {
+    for (const radio of inputGenre) {
+      if (radio.checked) return radio.value;
+    }
+    return "";
+  }
+
+  // ---- あらすじが上限内に収まっているか判定する関数 ----
+  // 「文字数オーバー」と「(折り返した結果の)行数オーバー」の両方をチェックする
+  function validateSynopsis() {
+    const text = inputSynopsis.value;
+    const overChars = text.length > SYNOPSIS_MAX_CHARS;
+
+    // 行数は、実際にカードの横幅で折り返してみないと分からないので
+    // 一旦フォントを合わせてから折り返し計算する
+    activeCtx.font = SYNOPSIS_FONT_SIZE + "px " + fontFamily();
+    const synopsisMaxWidth = CARD_WIDTH - PADDING * 2;
+    const lines = wrapLines(text, synopsisMaxWidth);
+    const overLines = lines.length > SYNOPSIS_MAX_LINES;
+
+    return {
+      ok: !overChars && !overLines,
+      overChars: overChars,
+      overLines: overLines,
+      lineCount: lines.length
+    };
+  }
+
+  // ---- カードを1枚描く関数 ----
+  function drawCard() {
+    const cardColor = inputCardColor.value;
+    const fontColor = inputFontColor.value;
+
+    // 背景をユーザーが選んだ色でリセット
+    activeCtx.fillStyle = cardColor;
+    activeCtx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
+
+    activeCtx.strokeStyle = "#333";
+    activeCtx.strokeRect(4, 4, CARD_WIDTH - 8, CARD_HEIGHT - 8);
+
+    // --- 上部3/5:画像エリア ---
+    const imageAreaHeight = CARD_HEIGHT * IMAGE_AREA_RATIO;
+    if (uploadedImage) {
+      const areaX = PADDING / 2;
+      const areaY = PADDING / 2;
+      const areaW = CARD_WIDTH - PADDING;
+      const areaH = imageAreaHeight - PADDING;
+
+      drawImageCover(uploadedImage, areaX, areaY, areaW, areaH, parseFloat(inputZoom.value));
+    } else {
+      activeCtx.fillStyle = "#ddd";
+      activeCtx.fillRect(PADDING / 2, PADDING / 2, CARD_WIDTH - PADDING, imageAreaHeight - PADDING);
+      activeCtx.fillStyle = "#888";
+      activeCtx.font = "14px " + fontFamily();
+      activeCtx.fillText("画像未選択", CARD_WIDTH / 2 - 40, imageAreaHeight / 2);
+    }
+
+    // 形態バッジ(画像エリア左上に重ねて表示。［表示なし］の場合は描かない)
+    const genre = selectedGenre();
+    if (genre) {
+      drawGenreBadge(genre, PADDING / 2 + 8, PADDING / 2 + 8, cardColor, fontColor);
+    }
+
+    // --- 下部2/5:文字エリア ---
+    const titleY = imageAreaHeight + 30;
+    const charNameY = titleY + 28;
+    const synopsisStartY = charNameY + 30;
+    const circleY = CARD_HEIGHT - PADDING;
+
+    activeCtx.fillStyle = fontColor;
+    activeCtx.font = "bold 20px " + fontFamily();
+    activeCtx.fillText(inputTitle.value, PADDING, titleY, CARD_WIDTH - PADDING - 70);
+
+    activeCtx.font = "14px " + fontFamily();
+    activeCtx.fillStyle = fontColor;
+    activeCtx.fillText(inputChar.value, PADDING, charNameY, CARD_WIDTH - PADDING - 70);
+
+    if (inputR18.checked) {
+      drawR18Badge(CARD_WIDTH - PADDING - 50, titleY - 24, 50, 44);
+    }
+
+    // --- あらすじ:上限を超えている場合は描かず、エラー表示に差し替える ---
+    const validation = validateSynopsis();
+    activeCtx.font = SYNOPSIS_FONT_SIZE + "px " + fontFamily();
+    const synopsisMaxWidth = CARD_WIDTH - PADDING * 2;
+
+    if (validation.ok) {
+      activeCtx.fillStyle = fontColor;
+      const lines = wrapLines(inputSynopsis.value, synopsisMaxWidth);
+      lines.forEach(function (line, i) {
+        activeCtx.fillText(line, PADDING, synopsisStartY + i * SYNOPSIS_LINE_HEIGHT);
+      });
+    } else {
+      // カードとしては「未完成」であることが分かるよう、赤字で明示する
+      activeCtx.fillStyle = "#c0392b";
+      activeCtx.font = "bold 13px " + fontFamily();
+      activeCtx.fillText("⚠ あらすじが上限を超えています", PADDING, synopsisStartY);
+      activeCtx.font = "12px " + fontFamily();
+      activeCtx.fillText("(140文字・6行以内に収めてください)", PADDING, synopsisStartY + SYNOPSIS_LINE_HEIGHT);
+    }
+
+    activeCtx.font = "13px " + fontFamily();
+    activeCtx.fillStyle = fontColor;
+    activeCtx.textAlign = "right";
+    activeCtx.fillText("サークル: " + inputCircle.value, CARD_WIDTH - PADDING, circleY);
+    activeCtx.textAlign = "left";
+  }
+
+  function drawR18Badge(x, y, w, h) {
+    activeCtx.save();
+    // カード背景色とバッジ枠線色(赤)が近似色の場合でも視認できるよう、
+    // 白背景を先に敷いてから赤枠・文字を重ねる
+    activeCtx.fillStyle = "#fff";
+    activeCtx.fillRect(x, y, w, h);
+
+    activeCtx.strokeStyle = "#c0392b";
+    activeCtx.lineWidth = 2;
+    activeCtx.strokeRect(x, y, w, h);
+    activeCtx.fillStyle = "#c0392b";
+    activeCtx.font = "bold 18px sans-serif";
+    activeCtx.textAlign = "center";
+    activeCtx.textBaseline = "middle";
+    activeCtx.fillText("R18", x + w / 2, y + h / 2);
+    activeCtx.restore();
+  }
+
+  // 画像エリア左上に重ねる、塗りつぶし背景つきの小さな形態タグを描く
+  // 背景色・文字色は、カードの背景色/文字色の設定と連動させる
+  function drawGenreBadge(text, x, y, bgColor, textColor) {
+    activeCtx.save();
+    activeCtx.font = "bold 13px " + fontFamily();
+    const textWidth = activeCtx.measureText(text).width;
+    const padX = 8;
+    const padY = 5;
+    const boxW = textWidth + padX * 2;
+    const boxH = 13 + padY * 2;
+
+    activeCtx.fillStyle = bgColor;
+    activeCtx.fillRect(x, y, boxW, boxH);
+    activeCtx.strokeStyle = textColor;
+    activeCtx.lineWidth = 1;
+    activeCtx.strokeRect(x, y, boxW, boxH);
+
+    activeCtx.fillStyle = textColor;
+    activeCtx.textAlign = "left";
+    activeCtx.textBaseline = "middle";
+    activeCtx.fillText(text, x + padX, y + boxH / 2 + 1);
+    activeCtx.restore();
+  }
+
+  function getCoverScale(img, areaW, areaH) {
+    return Math.max(areaW / img.width, areaH / img.height);
+  }
+
+  function drawImageCover(img, areaX, areaY, areaW, areaH, zoom) {
+    const scale = getCoverScale(img, areaW, areaH) * zoom;
+    const drawW = img.width * scale;
+    const drawH = img.height * scale;
+
+    let drawX = areaX + (areaW - drawW) / 2 + dragOffsetX;
+    let drawY = areaY + (areaH - drawH) / 2 + dragOffsetY;
+
+    if (drawW > areaW) {
+      const minX = areaX + areaW - drawW;
+      const maxX = areaX;
+      drawX = Math.max(minX, Math.min(maxX, drawX));
+    }
+    if (drawH > areaH) {
+      const minY = areaY + areaH - drawH;
+      const maxY = areaY;
+      drawY = Math.max(minY, Math.min(maxY, drawY));
+    }
+
+    activeCtx.save();
+    activeCtx.beginPath();
+    activeCtx.rect(areaX, areaY, areaW, areaH);
+    activeCtx.clip();
+    activeCtx.drawImage(img, drawX, drawY, drawW, drawH);
+    activeCtx.restore();
+  }
+
+  // ---- 文章を1行ずつに分割する補助関数(計算専用。描画はしない) ----
+  function wrapLines(text, maxWidth) {
+    const lines = [];
+    const paragraphs = text.split("\n");
+
+    paragraphs.forEach(function (paragraph) {
+      let line = "";
+      for (let i = 0; i < paragraph.length; i++) {
+        const testLine = line + paragraph[i];
+        if (activeCtx.measureText(testLine).width > maxWidth && line !== "") {
+          lines.push(line);
+          line = paragraph[i];
+        } else {
+          line = testLine;
+        }
+      }
+      lines.push(line);
+    });
+
+    return lines;
+  }
+
+  // ---- 文字数カウント表示 + エラー表示の切り替え ----
+  function updateCharCount() {
+    const validation = validateSynopsis();
+    const currentLength = inputSynopsis.value.length;
+
+    charCountEl.textContent = currentLength + " / " + SYNOPSIS_MAX_CHARS + " 文字"
+      + "(" + validation.lineCount + " / " + SYNOPSIS_MAX_LINES + " 行)";
+    charCountEl.classList.toggle("over", !validation.ok);
+
+    // textareaの枠を赤くする・エラー文言を出す/隠す
+    inputSynopsis.classList.toggle("error", !validation.ok);
+    synopsisErrorMsgEl.style.display = validation.ok ? "none" : "block";
+  }
+
+  inputImage.addEventListener("change", function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function (event) {
+      const img = new Image();
+      img.onload = function () {
+        uploadedImage = img;
+        dragOffsetX = 0;
+        dragOffsetY = 0;
+        drawCard();
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  [inputTitle, inputChar, inputCircle, inputR18, inputZoom, inputCardColor, inputFontColor].forEach(function (el) {
+    el.addEventListener("input", drawCard);
+  });
+  inputGenre.forEach(function (el) {
+    el.addEventListener("change", drawCard);
+  });
+
+  // Webフォントは非同期で読み込まれるため、選択時に読み込みを待ってから再描画する
+  // (待たずに描画すると、フォントが間に合わず代替フォントで一瞬〜そのまま表示されてしまう)
+  inputFont.addEventListener("change", function () {
+    const family = fontFamily();
+    document.fonts.load("20px " + family).then(function () {
+      drawCard();
+    }).catch(function () {
+      drawCard(); // 読み込みに失敗しても代替フォントで描画は続行する
+    });
+  });
+  inputSynopsis.addEventListener("input", function () {
+    updateCharCount();
+    drawCard();
+  });
+
+  // ---- ドラッグ操作 ----
+  let isDragging = false;
+  let lastX = 0;
+  let lastY = 0;
+
+  function startDrag(x, y) {
+    if (!uploadedImage) return;
+    isDragging = true;
+    lastX = x;
+    lastY = y;
+    canvas.classList.add("dragging");
+  }
+
+  function moveDrag(x, y) {
+    if (!isDragging || !uploadedImage) return;
+    const dx = x - lastX;
+    const dy = y - lastY;
+    lastX = x;
+    lastY = y;
+
+    // canvasが画面幅に合わせて縮小表示されている場合、
+    // 画面上の1pxの移動は、canvas内部では「表示倍率の逆数」倍の移動に相当する
+    const scaleX = canvas.width / canvas.clientWidth;
+    const scaleY = canvas.height / canvas.clientHeight;
+
+    dragOffsetX += dx * scaleX;
+    dragOffsetY += dy * scaleY;
+    drawCard();
+  }
+
+  function endDrag() {
+    isDragging = false;
+    canvas.classList.remove("dragging");
+  }
+
+  canvas.addEventListener("mousedown", (e) => startDrag(e.clientX, e.clientY));
+  window.addEventListener("mousemove", (e) => moveDrag(e.clientX, e.clientY));
+  window.addEventListener("mouseup", endDrag);
+
+  canvas.addEventListener("touchstart", (e) => {
+    const t = e.touches[0];
+    startDrag(t.clientX, t.clientY);
+  });
+  window.addEventListener("touchmove", (e) => {
+    if (!isDragging) return;
+    const t = e.touches[0];
+    moveDrag(t.clientX, t.clientY);
+  });
+  window.addEventListener("touchend", endDrag);
+
+  // ---- ダウンロード機能 ----
+
+  // A5用紙(148×210mm)に300dpiで印刷しても粗さが出ない解像度を狙った倍率。
+  // CARD_WIDTH×EXPORT_SCALE = 400×4.4 = 1760px、CARD_HEIGHT×EXPORT_SCALE = 560×4.4 = 2464px
+  // (A5・300dpiの目安値 約1748×2480px にほぼ一致)
+  const EXPORT_SCALE = 4.4;
+
+  // canvasの中身をPNGとしてファイル保存する共通処理
+  function downloadCanvasAsPng(targetCanvas, filename) {
+    targetCanvas.toBlob(function (blob) {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, "image/png");
+  }
+
+  // オフスクリーンcanvasにEXPORT_SCALE倍の解像度でカードを描き直して返す。
+  // プレビュー用canvasのサイズはCARD_WIDTH×CARD_HEIGHTのまま変えず、
+  // 画面表示や操作性(ドラッグ位置の計算など)に影響が出ないようにする
+  function renderExportCanvas() {
+    const exportCanvas = document.createElement("canvas");
+    exportCanvas.width = CARD_WIDTH * EXPORT_SCALE;
+    exportCanvas.height = CARD_HEIGHT * EXPORT_SCALE;
+    const exportCtx = exportCanvas.getContext("2d");
+    exportCtx.scale(EXPORT_SCALE, EXPORT_SCALE);
+
+    // drawCard()はactiveCtxに向けて描くので、一時的にオフスクリーン側へ差し替える
+    const previousActiveCtx = activeCtx;
+    activeCtx = exportCtx;
+    drawCard();
+    activeCtx = previousActiveCtx;
+
+    return exportCanvas;
+  }
+
+  btnDownloadSingle.addEventListener("click", function () {
+    const exportCanvas = renderExportCanvas();
+    downloadCanvasAsPng(exportCanvas, (inputTitle.value || "あらすじカード") + ".png");
+  });
+
+  updateCharCount();
+  // ページ内の全Webフォントの読み込み完了を待ってから初期描画する
+  document.fonts.ready.then(function () {
+    drawCard();
+  });
+  drawCard(); // フォント読み込み待ちの間も、代替フォントでとりあえず表示しておく
+</script>
+
+</body>
+</html>
