@@ -12,11 +12,19 @@
     font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
     background: #f4f1ea;
     padding: 24px;
+    margin: 0;
+  }
+
+  /* 画面全体の中央にコンテンツを配置するコンテナ */
+  .app-container {
+    max-width: 720px;
+    margin: 0 auto;
     display: flex;
     flex-wrap: wrap;
     gap: 32px;
   }
-  h1 { width: 100%; font-size: 18px; }
+
+  h1 { width: 100%; font-size: 18px; margin-bottom: 0; }
 
   #form-area { width: 280px; }
   #form-area label {
@@ -51,7 +59,7 @@
     font-size: 12px;
     color: #c0392b;
     margin-top: 4px;
-    display: none; /* エラー時にJSでdisplay:blockに切り替える */
+    display: none;
   }
   .checkbox-row {
     display: flex;
@@ -90,7 +98,7 @@
     width: 100%;
     max-width: 400px;
     margin-top: 48px;
-    align-self: flex-start; /* 親(body)のflex stretchでこのブロックごと引き伸ばされないようにする */
+    align-self: flex-start;
   }
   #preview-label {
     font-size: 13px;
@@ -104,22 +112,10 @@
     border: 1px solid #ccc;
     background: #fff;
     cursor: grab;
-    /* 画像エリア/文字エリアで「ドラッグ」と「スクロール」を
-       JS側で完全に手動制御するため、ブラウザ標準のタッチ挙動は
-       すべて止めておく(none)。文字エリア分のスクロールは
-       window.scrollBy()で自前に再現する */
     touch-action: none;
-    /* 内部サイズ(400x560)の縦横比を必ず保ったまま、
-       画面の幅に合わせて縮小表示されるようにする。
-       これがないと、表示環境によってはカード全体が
-       縦横比を無視して引き伸ばされてしまうことがある */
     width: 100%;
     height: auto;
     aspect-ratio: 400 / 560;
-    /* 親(body)がflexboxで、初期設定だと子要素を縦方向に
-       引き伸ばそうとする(align-items: stretch)。
-       それを無視して、本来の高さ(aspect-ratioで決まる高さ)
-       だけを使うように指定する */
     align-self: flex-start;
   }
   canvas.dragging {
@@ -143,115 +139,140 @@
     cursor: default;
   }
 
+  footer {
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid #ddd;
+    text-align: center;
+    font-size: 12px;
+    color: #666;
+  }
+  footer a {
+    color: #555;
+    text-decoration: underline;
+  }
+  footer a:hover {
+    color: #000;
+  }
+
   @media (max-width: 480px) {
     body {
       padding: 12px;
+    }
+    .app-container {
       gap: 20px;
     }
     #form-area {
       width: 100%;
+    }
+    #preview-area {
+      margin-top: 0;
     }
   }
 </style>
 </head>
 <body>
 
-<h1>あらすじカード作成</h1>
-<p style="width:100%; font-size:12px; color:#888; margin-top:-8px;">※アップロードした画像は保存されません(このページ内でのみ使用され、送信・保存は行われません)。</p>
+<div class="app-container">
+  <h1>あらすじカード作成</h1>
+  <p style="width:100%; font-size:12px; color:#888; margin-top:-16px;">※アップロードした画像は保存されません(このページ内でのみ使用され、送信・保存は行われません)。</p>
 
-<div id="form-area">
-  <label>タイトル
-    <input type="text" id="inputTitle" value="">
-  </label>
+  <div id="form-area">
+    <label>タイトル
+      <input type="text" id="inputTitle" value="">
+    </label>
 
-  <label>登場人物(CP名)
-    <input type="text" id="inputChar" value="">
-  </label>
+    <label>登場人物(CP名)
+      <input type="text" id="inputChar" value="">
+    </label>
 
-  <label>あらすじ(140文字・6行まで)
-    <textarea id="inputSynopsis" rows="6"></textarea>
-  </label>
-  <div id="charCount">0 / 140 文字</div>
-  <div id="synopsisErrorMsg">文字数または行数の上限を超えています。カードは生成できません。あらすじを短くしてください。</div>
+    <label>あらすじ(140文字・6行まで)
+      <textarea id="inputSynopsis" rows="6"></textarea>
+    </label>
+    <div id="charCount">0 / 140 文字</div>
+    <div id="synopsisErrorMsg">文字数または行数の上限を超えています。カードは生成できません。あらすじを短くしてください。</div>
 
-  <label>サークル名
-    <input type="text" id="inputCircle" value="">
-  </label>
+    <label>サークル名
+      <input type="text" id="inputCircle" value="">
+    </label>
 
-  <div class="genre-row" style="margin-top:14px;">
-    <label style="display:block; font-size:13px; color:#555; margin-bottom:4px;">形態</label>
-    <div style="display:flex; flex-direction:column; gap:8px;">
-      <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:#333; margin:0;">
-        <input type="radio" name="inputGenre" value="" checked>［表示なし］
-      </label>
-      <div style="display:flex; gap:14px; flex-wrap:wrap;">
+    <div class="genre-row" style="margin-top:14px;">
+      <label style="display:block; font-size:13px; color:#555; margin-bottom:4px;">形態</label>
+      <div style="display:flex; flex-direction:column; gap:8px;">
         <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:#333; margin:0;">
-          <input type="radio" name="inputGenre" value="小説">小説
+          <input type="radio" name="inputGenre" value="" checked>［表示なし］
         </label>
-        <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:#333; margin:0;">
-          <input type="radio" name="inputGenre" value="マンガ">マンガ
-        </label>
-        <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:#333; margin:0;">
-          <input type="radio" name="inputGenre" value="イラスト集">イラスト集
-        </label>
+        <div style="display:flex; gap:14px; flex-wrap:wrap;">
+          <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:#333; margin:0;">
+            <input type="radio" name="inputGenre" value="小説">小説
+          </label>
+          <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:#333; margin:0;">
+            <input type="radio" name="inputGenre" value="マンガ">マンガ
+          </label>
+          <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:#333; margin:0;">
+            <input type="radio" name="inputGenre" value="イラスト集">イラスト集
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="checkbox-row">
+      <input type="checkbox" id="inputR18">
+      <label for="inputR18">R18作品</label>
+    </div>
+
+    <label>画像を選ぶ
+      <input type="file" id="inputImage" accept="image/*">
+    </label>
+
+    <label>拡大率(中央が原寸フィット)
+      <input type="range" id="inputZoom" min="0.5" max="1.5" step="0.01" value="1">
+    </label>
+
+    <label>フォント
+      <select id="inputFont">
+        <option value="'Noto Sans JP', sans-serif">ゴシック体</option>
+        <option value="'Noto Serif JP', serif">明朝体</option>
+      </select>
+    </label>
+
+    <p style="font-size:12px; color:#888; margin-top:6px;">
+      画像はプレビュー上でドラッグすると位置を調整できます。
+    </p>
+
+    <div class="color-row" style="margin-top:16px;">
+      <div>
+        <label>カード背景色</label>
+        <input type="color" id="inputCardColor" value="#ffffff">
+      </div>
+      <div>
+        <label>文字色</label>
+        <input type="color" id="inputFontColor" value="#222222">
       </div>
     </div>
   </div>
 
-  <div class="checkbox-row">
-    <input type="checkbox" id="inputR18">
-    <label for="inputR18">R18作品</label>
-  </div>
+  <div id="preview-area">
+    <div id="preview-label">プレビュー</div>
+    <canvas id="cardCanvas" width="400" height="560"></canvas>
 
-  <label>画像を選ぶ
-    <input type="file" id="inputImage" accept="image/*">
-  </label>
-
-  <label>拡大率(中央が原寸フィット)
-    <input type="range" id="inputZoom" min="0.5" max="1.5" step="0.01" value="1">
-  </label>
-
-  <label>フォント
-    <select id="inputFont">
-      <option value="'Noto Sans JP', sans-serif">ゴシック体</option>
-      <option value="'Noto Serif JP', serif">明朝体</option>
-    </select>
-  </label>
-
-  <p style="font-size:12px; color:#888; margin-top:6px;">
-    画像はプレビュー上でドラッグすると位置を調整できます。
-  </p>
-
-  <div class="color-row" style="margin-top:16px;">
-    <div>
-      <label>カード背景色</label>
-      <input type="color" id="inputCardColor" value="#ffffff">
-    </div>
-    <div>
-      <label>文字色</label>
-      <input type="color" id="inputFontColor" value="#222222">
+    <div id="download-area" style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
+      <button id="btnDownloadSingle" type="button">カード画像をダウンロード(PNG)</button>
     </div>
   </div>
-</div>
 
-<div id="preview-area">
-  <div id="preview-label">プレビュー</div>
-  <canvas id="cardCanvas" width="400" height="560"></canvas>
-
-  <div id="download-area" style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
-    <button id="btnDownloadSingle" type="button">カード画像をダウンロード(PNG)</button>
-  </div>
+  <footer>
+    <p><a href="https://github.com/kanashiki1979/terms" target="_blank" rel="noopener">利用規約・免責事項</a></p>
+  </footer>
 </div>
 
 <script>
   const canvas = document.getElementById("cardCanvas");
   const ctx = canvas.getContext("2d");
-  // 描画関数はこのactiveCtxに向けて描く。通常はプレビュー用ctxだが、
-  // 高解像度で書き出す時だけ一時的にオフスクリーンcanvasのctxに差し替える
   let activeCtx = ctx;
 
-  // カードのデザイン上の論理サイズ(常にこの座標系で描く)。
-  // 実際に書き出す解像度はactiveCtxにかけるスケール倍率で変わる
   const CARD_WIDTH = 400;
   const CARD_HEIGHT = 560;
 
@@ -274,22 +295,18 @@
   let dragOffsetY = 0;
   let uploadedImage = null;
 
-  // ---- レイアウトの基準値 ----
   const PADDING = 20;
   const IMAGE_AREA_RATIO = 3 / 5;
   const SYNOPSIS_FONT_SIZE = 13;
   const SYNOPSIS_LINE_HEIGHT = 18;
 
-  // ---- 今回追加:あらすじの固定ルール ----
-  const SYNOPSIS_MAX_CHARS = 140; // Xと同じ文字数上限
-  const SYNOPSIS_MAX_LINES = 6;   // レイアウト上、6行までしか置き場所がない
+  const SYNOPSIS_MAX_CHARS = 140;
+  const SYNOPSIS_MAX_LINES = 6;
 
-  // ---- 現在選択されているフォントファミリーを返す ----
   function fontFamily() {
     return inputFont.value;
   }
 
-  // ---- 現在選択されているジャンルを返す ----
   function selectedGenre() {
     for (const radio of inputGenre) {
       if (radio.checked) return radio.value;
@@ -297,14 +314,10 @@
     return "";
   }
 
-  // ---- あらすじが上限内に収まっているか判定する関数 ----
-  // 「文字数オーバー」と「(折り返した結果の)行数オーバー」の両方をチェックする
   function validateSynopsis() {
     const text = inputSynopsis.value;
     const overChars = text.length > SYNOPSIS_MAX_CHARS;
 
-    // 行数は、実際にカードの横幅で折り返してみないと分からないので
-    // 一旦フォントを合わせてから折り返し計算する
     activeCtx.font = SYNOPSIS_FONT_SIZE + "px " + fontFamily();
     const synopsisMaxWidth = CARD_WIDTH - PADDING * 2;
     const lines = wrapLines(text, synopsisMaxWidth);
@@ -318,19 +331,16 @@
     };
   }
 
-  // ---- カードを1枚描く関数 ----
   function drawCard() {
     const cardColor = inputCardColor.value;
     const fontColor = inputFontColor.value;
 
-    // 背景をユーザーが選んだ色でリセット
     activeCtx.fillStyle = cardColor;
     activeCtx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
 
     activeCtx.strokeStyle = "#333";
     activeCtx.strokeRect(4, 4, CARD_WIDTH - 8, CARD_HEIGHT - 8);
 
-    // --- 上部3/5:画像エリア ---
     const imageAreaHeight = CARD_HEIGHT * IMAGE_AREA_RATIO;
     if (uploadedImage) {
       const areaX = PADDING / 2;
@@ -347,13 +357,11 @@
       activeCtx.fillText("画像未選択", CARD_WIDTH / 2 - 40, imageAreaHeight / 2);
     }
 
-    // 形態バッジ(画像エリア左上に重ねて表示。［表示なし］の場合は描かない)
     const genre = selectedGenre();
     if (genre) {
       drawGenreBadge(genre, PADDING / 2 + 8, PADDING / 2 + 8, cardColor, fontColor);
     }
 
-    // --- 下部2/5:文字エリア ---
     const titleY = imageAreaHeight + 30;
     const charNameY = titleY + 28;
     const synopsisStartY = charNameY + 30;
@@ -371,7 +379,6 @@
       drawR18Badge(CARD_WIDTH - PADDING - 50, titleY - 24, 50, 44);
     }
 
-    // --- あらすじ:上限を超えている場合は描かず、エラー表示に差し替える ---
     const validation = validateSynopsis();
     activeCtx.font = SYNOPSIS_FONT_SIZE + "px " + fontFamily();
     const synopsisMaxWidth = CARD_WIDTH - PADDING * 2;
@@ -383,7 +390,6 @@
         activeCtx.fillText(line, PADDING, synopsisStartY + i * SYNOPSIS_LINE_HEIGHT);
       });
     } else {
-      // カードとしては「未完成」であることが分かるよう、赤字で明示する
       activeCtx.fillStyle = "#c0392b";
       activeCtx.font = "bold 13px " + fontFamily();
       activeCtx.fillText("⚠ あらすじが上限を超えています", PADDING, synopsisStartY);
@@ -400,8 +406,6 @@
 
   function drawR18Badge(x, y, w, h) {
     activeCtx.save();
-    // カード背景色とバッジ枠線色(赤)が近似色の場合でも視認できるよう、
-    // 白背景を先に敷いてから赤枠・文字を重ねる
     activeCtx.fillStyle = "#fff";
     activeCtx.fillRect(x, y, w, h);
 
@@ -416,8 +420,6 @@
     activeCtx.restore();
   }
 
-  // 画像エリア左上に重ねる、塗りつぶし背景つきの小さな形態タグを描く
-  // 背景色・文字色は、カードの背景色/文字色の設定と連動させる
   function drawGenreBadge(text, x, y, bgColor, textColor) {
     activeCtx.save();
     activeCtx.font = "bold 13px " + fontFamily();
@@ -471,7 +473,6 @@
     activeCtx.restore();
   }
 
-  // ---- 文章を1行ずつに分割する補助関数(計算専用。描画はしない) ----
   function wrapLines(text, maxWidth) {
     const lines = [];
     const paragraphs = text.split("\n");
@@ -493,7 +494,6 @@
     return lines;
   }
 
-  // ---- 文字数カウント表示 + エラー表示の切り替え ----
   function updateCharCount() {
     const validation = validateSynopsis();
     const currentLength = inputSynopsis.value.length;
@@ -502,7 +502,6 @@
       + "(" + validation.lineCount + " / " + SYNOPSIS_MAX_LINES + " 行)";
     charCountEl.classList.toggle("over", !validation.ok);
 
-    // textareaの枠を赤くする・エラー文言を出す/隠す
     inputSynopsis.classList.toggle("error", !validation.ok);
     synopsisErrorMsgEl.style.display = validation.ok ? "none" : "block";
   }
@@ -532,14 +531,12 @@
     el.addEventListener("change", drawCard);
   });
 
-  // Webフォントは非同期で読み込まれるため、選択時に読み込みを待ってから再描画する
-  // (待たずに描画すると、フォントが間に合わず代替フォントで一瞬〜そのまま表示されてしまう)
   inputFont.addEventListener("change", function () {
     const family = fontFamily();
     document.fonts.load("20px " + family).then(function () {
       drawCard();
     }).catch(function () {
-      drawCard(); // 読み込みに失敗しても代替フォントで描画は続行する
+      drawCard();
     });
   });
   inputSynopsis.addEventListener("input", function () {
@@ -547,7 +544,6 @@
     drawCard();
   });
 
-  // ---- ドラッグ操作 ----
   let isDragging = false;
   let lastX = 0;
   let lastY = 0;
@@ -567,8 +563,6 @@
     lastX = x;
     lastY = y;
 
-    // canvasが画面幅に合わせて縮小表示されている場合、
-    // 画面上の1pxの移動は、canvas内部では「表示倍率の逆数」倍の移動に相当する
     const scaleX = canvas.width / canvas.clientWidth;
     const scaleY = canvas.height / canvas.clientHeight;
 
@@ -586,9 +580,6 @@
   window.addEventListener("mousemove", (e) => moveDrag(e.clientX, e.clientY));
   window.addEventListener("mouseup", endDrag);
 
-  // ---- 画像エリア内かどうかの判定(canvas内部座標に変換して判定) ----
-  // 画像エリアは「上部3/5(IMAGE_AREA_RATIO)」の領域。文字エリア(タイトル・
-  // あらすじ等)を触った場合はドラッグさせず、ページスクロールとして扱う
   function isTouchInImageArea(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
     const scaleY = canvas.height / rect.height;
@@ -596,9 +587,7 @@
     return yInCanvas >= 0 && yInCanvas <= CARD_HEIGHT * IMAGE_AREA_RATIO;
   }
 
-  // touchstart時点で「画像エリアを触ったのでドラッグ」か
-  // 「文字エリア(その他)を触ったのでスクロール」かを1回だけ判定して覚えておく
-  let touchMode = null; // "drag" | "scroll" | null
+  let touchMode = null;
   let scrollLastY = 0;
 
   canvas.addEventListener("touchstart", (e) => {
@@ -607,9 +596,6 @@
       touchMode = "drag";
       startDrag(t.clientX, t.clientY);
     } else {
-      // 画像エリア外(文字エリアなど)は、canvas自体のtouch-action:noneで
-      // ブラウザ標準のスクロールが無効化されているため、
-      // window.scrollByで手動的にスクロールを再現する
       touchMode = "scroll";
       scrollLastY = t.clientY;
     }
@@ -633,19 +619,10 @@
     endDrag();
   }
   window.addEventListener("touchend", endTouch);
-  // スクロールとの競合などでブラウザ側がタッチ操作を強制終了した場合、
-  // touchendが発火せずtouchMode/isDraggingが残ってしまうことがあるため、
-  // touchcancelでも確実にリセットする
   window.addEventListener("touchcancel", endTouch);
 
-  // ---- ダウンロード機能 ----
-
-  // A5用紙(148×210mm)に300dpiで印刷しても粗さが出ない解像度を狙った倍率。
-  // CARD_WIDTH×EXPORT_SCALE = 400×4.4 = 1760px、CARD_HEIGHT×EXPORT_SCALE = 560×4.4 = 2464px
-  // (A5・300dpiの目安値 約1748×2480px にほぼ一致)
   const EXPORT_SCALE = 4.4;
 
-  // canvasの中身をPNGとしてファイル保存する共通処理
   function downloadCanvasAsPng(targetCanvas, filename) {
     targetCanvas.toBlob(function (blob) {
       if (!blob) return;
@@ -660,9 +637,6 @@
     }, "image/png");
   }
 
-  // オフスクリーンcanvasにEXPORT_SCALE倍の解像度でカードを描き直して返す。
-  // プレビュー用canvasのサイズはCARD_WIDTH×CARD_HEIGHTのまま変えず、
-  // 画面表示や操作性(ドラッグ位置の計算など)に影響が出ないようにする
   function renderExportCanvas() {
     const exportCanvas = document.createElement("canvas");
     exportCanvas.width = CARD_WIDTH * EXPORT_SCALE;
@@ -670,7 +644,6 @@
     const exportCtx = exportCanvas.getContext("2d");
     exportCtx.scale(EXPORT_SCALE, EXPORT_SCALE);
 
-    // drawCard()はactiveCtxに向けて描くので、一時的にオフスクリーン側へ差し替える
     const previousActiveCtx = activeCtx;
     activeCtx = exportCtx;
     drawCard();
@@ -685,11 +658,10 @@
   });
 
   updateCharCount();
-  // ページ内の全Webフォントの読み込み完了を待ってから初期描画する
   document.fonts.ready.then(function () {
     drawCard();
   });
-  drawCard(); // フォント読み込み待ちの間も、代替フォントでとりあえず表示しておく
+  drawCard();
 </script>
 
 </body>
