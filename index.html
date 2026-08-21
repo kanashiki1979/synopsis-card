@@ -104,6 +104,10 @@
     border: 1px solid #ccc;
     background: #fff;
     cursor: grab;
+    /* 画像エリア/文字エリアで「ドラッグ」と「スクロール」を
+       JS側で完全に手動制御するため、ブラウザ標準のタッチ挙動は
+       すべて止めておく(none)。文字エリア分のスクロールは
+       window.scrollBy()で自前に再現する */
     touch-action: none;
     /* 内部サイズ(400x560)の縦横比を必ず保ったまま、
        画面の幅に合わせて縮小表示されるようにする。
@@ -199,7 +203,7 @@
     <label for="inputR18">R18作品</label>
   </div>
 
-  <label>画像を選ぶ▼
+  <label>画像を選ぶ
     <input type="file" id="inputImage" accept="image/*">
   </label>
 
@@ -582,22 +586,57 @@
   window.addEventListener("mousemove", (e) => moveDrag(e.clientX, e.clientY));
   window.addEventListener("mouseup", endDrag);
 
+  // ---- 画像エリア内かどうかの判定(canvas内部座標に変換して判定) ----
+  // 画像エリアは「上部3/5(IMAGE_AREA_RATIO)」の領域。文字エリア(タイトル・
+  // あらすじ等)を触った場合はドラッグさせず、ページスクロールとして扱う
+  function isTouchInImageArea(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleY = canvas.height / rect.height;
+    const yInCanvas = (clientY - rect.top) * scaleY;
+    return yInCanvas >= 0 && yInCanvas <= CARD_HEIGHT * IMAGE_AREA_RATIO;
+  }
+
+  // touchstart時点で「画像エリアを触ったのでドラッグ」か
+  // 「文字エリア(その他)を触ったのでスクロール」かを1回だけ判定して覚えておく
+  let touchMode = null; // "drag" | "scroll" | null
+  let scrollLastY = 0;
+
   canvas.addEventListener("touchstart", (e) => {
     const t = e.touches[0];
-    startDrag(t.clientX, t.clientY);
-  });
+    if (uploadedImage && isTouchInImageArea(t.clientX, t.clientY)) {
+      touchMode = "drag";
+      startDrag(t.clientX, t.clientY);
+    } else {
+      // 画像エリア外(文字エリアなど)は、canvas自体のtouch-action:noneで
+      // ブラウザ標準のスクロールが無効化されているため、
+      // window.scrollByで手動的にスクロールを再現する
+      touchMode = "scroll";
+      scrollLastY = t.clientY;
+    }
+  }, { passive: false });
+
   window.addEventListener("touchmove", (e) => {
-    if (!isDragging) return;
+    if (!touchMode) return;
+    e.preventDefault();
     const t = e.touches[0];
-    moveDrag(t.clientX, t.clientY);
-  });
-  window.addEventListener("touchend", endDrag);
+    if (touchMode === "drag") {
+      moveDrag(t.clientX, t.clientY);
+    } else if (touchMode === "scroll") {
+      const dy = scrollLastY - t.clientY;
+      window.scrollBy(0, dy);
+      scrollLastY = t.clientY;
+    }
+  }, { passive: false });
+
+  function endTouch() {
+    touchMode = null;
+    endDrag();
+  }
+  window.addEventListener("touchend", endTouch);
   // スクロールとの競合などでブラウザ側がタッチ操作を強制終了した場合、
-  // touchendが発火せずisDraggingがtrueのまま残ることがある。
-  // これを放置すると、その後まったく別の場所(フォーム欄など)でページを
-  // スクロールしただけでも、残ったドラッグ状態のせいで画像が動いてしまう。
-  // touchcancelでも確実にドラッグ状態をリセットする。
-  window.addEventListener("touchcancel", endDrag);
+  // touchendが発火せずtouchMode/isDraggingが残ってしまうことがあるため、
+  // touchcancelでも確実にリセットする
+  window.addEventListener("touchcancel", endTouch);
 
   // ---- ダウンロード機能 ----
 
