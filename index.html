@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>あらすじカード作成</title>
+<title>あらすじカード作成ツール</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
@@ -93,6 +93,22 @@
     cursor: pointer;
   }
 
+  .btn-clear {
+    width: 100%;
+    padding: 8px;
+    font-size: 12px;
+    border: 1px solid #ccc;
+    background: #fff;
+    color: #666;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 20px;
+  }
+  .btn-clear:hover {
+    background: #eee;
+    color: #333;
+  }
+
   /* 右側:カードのプレビューエリア全体 */
   #preview-area {
     width: 100%;
@@ -176,7 +192,7 @@
 <body>
 
 <div class="app-container">
-  <h1>あらすじカード作成</h1>
+  <h1>あらすじカード作成ツール</h1>
   <p style="width:100%; font-size:12px; color:#888; margin-top:-16px;">※アップロードした画像は保存されません(このページ内でのみ使用され、送信・保存は行われません)。</p>
 
   <div id="form-area">
@@ -252,6 +268,8 @@
         <input type="color" id="inputFontColor" value="#222222">
       </div>
     </div>
+
+    <button type="button" id="btnClear" class="btn-clear">入力内容をクリア</button>
   </div>
 
   <div id="preview-area">
@@ -290,6 +308,7 @@
   const charCountEl = document.getElementById("charCount");
   const synopsisErrorMsgEl = document.getElementById("synopsisErrorMsg");
   const btnDownloadSingle = document.getElementById("btnDownloadSingle");
+  const btnClear = document.getElementById("btnClear");
 
   let dragOffsetX = 0;
   let dragOffsetY = 0;
@@ -540,6 +559,31 @@
     });
   });
   inputSynopsis.addEventListener("input", function () {
+    updateCharCount();
+    drawCard();
+  });
+
+  btnClear.addEventListener("click", function () {
+    if (!confirm("入力内容をすべてクリアしますか？")) return;
+
+    inputTitle.value = "";
+    inputChar.value = "";
+    inputSynopsis.value = "";
+    inputCircle.value = "";
+    
+    inputGenre[0].checked = true;
+    inputR18.checked = false;
+
+    inputImage.value = "";
+    uploadedImage = null;
+    dragOffsetX = 0;
+    dragOffsetY = 0;
+
+    inputZoom.value = 1;
+    inputFont.selectedIndex = 0;
+    inputCardColor.value = "#ffffff";
+    inputFontColor.value = "#222222";
+
     updateCharCount();
     drawCard();
   });
