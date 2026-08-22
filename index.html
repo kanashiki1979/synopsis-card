@@ -6,7 +6,7 @@
 <title>あらすじカード作成ツール</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700&family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
 <style>
   body {
     font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
@@ -24,7 +24,13 @@
     gap: 32px;
   }
 
-  h1 { width: 100%; font-size: 18px; margin-bottom: 0; }
+  h1 { 
+    width: 100%; 
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    font-weight: 700;
+    font-size: 22px; 
+    margin-bottom: 0; 
+  }
 
   #form-area { width: 280px; }
   #form-area label {
@@ -214,6 +220,10 @@
       <input type="text" id="inputCircle" value="">
     </label>
 
+    <label>発行年月日
+      <input type="text" id="inputReleaseDate" value="" placeholder="例：2026/05/03">
+    </label>
+
     <div class="genre-row" style="margin-top:14px;">
       <label style="display:block; font-size:13px; color:#555; margin-bottom:4px;">形態</label>
       <div style="display:flex; flex-direction:column; gap:8px;">
@@ -298,6 +308,7 @@
   const inputChar = document.getElementById("inputChar");
   const inputSynopsis = document.getElementById("inputSynopsis");
   const inputCircle = document.getElementById("inputCircle");
+  const inputReleaseDate = document.getElementById("inputReleaseDate");
   const inputR18 = document.getElementById("inputR18");
   const inputGenre = document.getElementsByName("inputGenre");
   const inputImage = document.getElementById("inputImage");
@@ -379,6 +390,15 @@
     const genre = selectedGenre();
     if (genre) {
       drawGenreBadge(genre, PADDING / 2 + 8, PADDING / 2 + 8, cardColor, fontColor);
+    }
+
+    if (inputReleaseDate.value.trim() !== "") {
+      activeCtx.save();
+      activeCtx.font = "10px " + fontFamily();
+      activeCtx.fillStyle = fontColor;
+      activeCtx.textAlign = "right";
+      activeCtx.fillText("発行年月日：" + inputReleaseDate.value.trim(), CARD_WIDTH - PADDING, imageAreaHeight + 2);
+      activeCtx.restore();
     }
 
     const titleY = imageAreaHeight + 30;
@@ -543,7 +563,7 @@
     reader.readAsDataURL(file);
   });
 
-  [inputTitle, inputChar, inputCircle, inputR18, inputZoom, inputCardColor, inputFontColor].forEach(function (el) {
+  [inputTitle, inputChar, inputCircle, inputReleaseDate, inputR18, inputZoom, inputCardColor, inputFontColor].forEach(function (el) {
     el.addEventListener("input", drawCard);
   });
   inputGenre.forEach(function (el) {
@@ -570,6 +590,7 @@
     inputChar.value = "";
     inputSynopsis.value = "";
     inputCircle.value = "";
+    inputReleaseDate.value = "";
     
     inputGenre[0].checked = true;
     inputR18.checked = false;
