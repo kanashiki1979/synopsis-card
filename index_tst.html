@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>あらすじカード作成ツール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700&family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  body {
+    font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: #f4f1ea;
+    padding: 24px;
+    margin: 0;
+  }
+
+  /* 画面全体の中央にコンテンツを配置するコンテナ */
+  .app-container {
+    max-width: 720px;
+    margin: 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px;
+  }
+
+  h1 { 
+    width: 100%; 
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    font-weight: 700;
+    font-size: 22px; 
+    margin-bottom: 0; 
+  }
+
+  #form-area { width: 280px; }
+  #form-area label {
+    display: block;
+    margin-top: 12px;
+    font-size: 13px;
+    color: #555;
+  }
+  #form-area input[type="text"],
+  #form-area textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px;
+    font-size: 14px;
+    margin-top: 4px;
+  }
+  #inputSynopsis.error {
+    border: 2px solid #c0392b;
+    outline: none;
+  }
+  #charCount {
+    font-size: 12px;
+    color: #888;
+    text-align: right;
+    margin-top: 2px;
+  }
+  #charCount.over {
+    color: #c0392b;
+    font-weight: bold;
+  }
+  #synopsisErrorMsg {
+    font-size: 12px;
+    color: #c0392b;
+    margin-top: 4px;
+    display: none;
+  }
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 14px;
+  }
+  .checkbox-row label {
+    margin: 0;
+    font-size: 13px;
+    color: #333;
+  }
+  .color-row {
+    display: flex;
+    gap: 16px;
+  }
+  .color-row > div {
+    flex: 1;
+  }
+  .color-row label {
+    display: block;
+    font-size: 13px;
+    color: #555;
+    margin-bottom: 4px;
+  }
+  input[type="color"] {
+    width: 100%;
+    height: 32px;
+    padding: 0;
+    border: 1px solid #ccc;
+    cursor: pointer;
+  }
+
+  .btn-clear {
+    width: 100%;
+    padding: 8px;
+    font-size: 12px;
+    border: 1px solid #ccc;
+    background: #fff;
+    color: #666;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 20px;
+  }
+  .btn-clear:hover {
+    background: #eee;
+    color: #333;
+  }
+
+  /* 右側:カードのプレビューエリア全体 */
+  #preview-area {
+    width: 100%;
+    max-width: 400px;
+    margin-top: 48px;
+    align-self: flex-start;
+  }
+  #preview-label {
+    font-size: 13px;
+    font-weight: bold;
+    color: #555;
+    text-align: right;
+    margin-bottom: 8px;
+  }
+
+  canvas {
+    border: 1px solid #ccc;
+    background: #fff;
+    cursor: grab;
+    touch-action: none;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 400 / 560;
+    align-self: flex-start;
+  }
+  canvas.dragging {
+    cursor: grabbing;
+  }
+
+  #download-area button {
+    padding: 10px 12px;
+    font-size: 13px;
+    border: 1px solid #999;
+    background: #fff;
+    color: #333;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  #download-area button:hover {
+    background: #eee;
+  }
+  #download-area button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  #saveHelp {
+    font-size: 12px;
+    color: #888;
+    margin: 0;
+    line-height: 1.6;
+  }
+  #saveOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 1000;
+    overflow-y: auto;
+    padding: 16px;
+    box-sizing: border-box;
+    text-align: center;
+  }
+  #saveOverlay p {
+    color: #fff;
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 8px 0 12px;
+  }
+  #saveOverlay img {
+    max-width: 100%;
+    height: auto;
+    background: #fff;
+    -webkit-touch-callout: default;
+    -webkit-user-select: auto;
+    user-select: auto;
+  }
+  #saveOverlay button {
+    margin: 12px 0;
+    padding: 10px 24px;
+    font-size: 14px;
+    border: 1px solid #fff;
+    background: transparent;
+    color: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  footer {
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid #ddd;
+    text-align: center;
+    font-size: 12px;
+    color: #666;
+  }
+  footer a {
+    color: #555;
+    text-decoration: underline;
+  }
+  footer a:hover {
+    color: #000;
+  }
+
+  @media (max-width: 480px) {
+    body {
+      padding: 12px;
+    }
+    .app-container {
+      gap: 20px;
+    }
+    #form-area {
+      width: 100%;
+    }
+    #preview-area {
+      margin-top: 0;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="app-container">
+  <h1>あらすじカード作成ツール</h1>
+  <p style="width:100%; font-size:12px; color:#888; margin-top:-16px;">※アップロードした画像は保存されません(このページ内でのみ使用され、送信・保存は行われません)。</p>
+
+  <div id="form-area">
+    <label>タイトル
+      <input type="text" id="inputTitle" value="">
+    </label>
+
+    <label>登場人物(CP名)
+      <input type="text" id="inputChar" value="">
+    </label>
+
+    <label>あらすじ(140文字・6行まで)
+      <textarea id="inputSynopsis" rows="6"></textarea>
+    </label>
+    <div id="charCount">0 / 140 文字</div>
+    <div id="synopsisErrorMsg">文字数または行数の上限を超えています。カードは生成できません。あらすじを短くしてください。</div>
+
+    <label>サークル名
+      <input type="text" id="inputCircle" value="">
+    </label>
+
+    <label>発行年月日
+      <input type="text" id="inputReleaseDate" value="" placeholder="例：2026/05/03">
+    </label>
+
+    <div class="genre-row" style="margin-top:14px;">
+      <label style="display:block; font-size:13px; color:#555; margin-bottom:4px;">形態</label>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:#333; margin:0;">
+          <input type="radio" name="inputGenre" value="" checked>［表示なし］
+        </label>
+        <div style="display:flex; gap:14px; flex-wrap:wrap;">
+          <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:#333; margin:0;">
+            <input type="radio" name="inputGenre" value="小説">小説
+          </label>
+          <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:#333; margin:0;">
+            <input type="radio" name="inputGenre" value="マンガ">マンガ
+          </label>
+          <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:#333; margin:0;">
+            <input type="radio" name="inputGenre" value="イラスト集">イラスト集
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="checkbox-row">
+      <input type="checkbox" id="inputR18">
+      <label for="inputR18">R18作品</label>
+    </div>
+
+    <label>画像を選ぶ
+      <input type="file" id="inputImage" accept="image/*">
+    </label>
+
+    <label>拡大率(中央が原寸フィット)
+      <input type="range" id="inputZoom" min="0.5" max="1.5" step="0.01" value="1">
+    </label>
+
+    <label>フォント
+      <select id="inputFont">
+        <option value="'Noto Sans JP', sans-serif">ゴシック体</option>
+        <option value="'Noto Serif JP', serif">明朝体</option>
+      </select>
+    </label>
+
+    <p style="font-size:12px; color:#888; margin-top:6px;">
+      画像はプレビュー上でドラッグすると位置を調整できます。
+    </p>
+
+    <div class="color-row" style="margin-top:16px;">
+      <div>
+        <label>カード背景色</label>
+        <input type="color" id="inputCardColor" value="#ffffff">
+      </div>
+      <div>
+        <label>文字色</label>
+        <input type="color" id="inputFontColor" value="#222222">
+      </div>
+    </div>
+
+    <button type="button" id="btnClear" class="btn-clear">入力内容をクリア</button>
+  </div>
+
+  <div id="preview-area">
+    <div id="preview-label">プレビュー</div>
+    <canvas id="cardCanvas" width="400" height="560"></canvas>
+
+    <div id="download-area" style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
+      <button id="btnDownloadSingle" type="button">カード画像をダウンロード(PNG)</button>
+      <button id="btnShowImage" type="button">保存できないとき：画像を表示して保存</button>
+      <p id="saveHelp">ダウンロードできない場合は下のボタンで画像を表示し、画像を長押しして「画像をダウンロード」や「画像を保存」を選んでください。</p>
+    </div>
+  </div>
+
+  <div id="saveOverlay">
+    <p>画像を長押しして「画像をダウンロード」（または「画像を保存」）を選んでください。</p>
+    <img id="saveOverlayImg" alt="あらすじカード">
+    <br>
+    <button type="button" id="btnCloseOverlay">閉じる</button>
+  </div>
+
+  <footer>あらすじカード作成ツール　｜　<a href="https://kanashiki1979.github.io/terms/" target="_blank" rel="noopener">制作・イベント支援ツール</a>　｜　<a href="https://github.com/kanashiki1979/terms" target="_blank" rel="noopener">利用規約・免責事項</a></footer>
+</div>
+
+<script>
+  const canvas = document.getElementById("cardCanvas");
+  const ctx = canvas.getContext("2d");
+  let activeCtx = ctx;
+
+  const CARD_WIDTH = 400;
+  const CARD_HEIGHT = 560;
+
+  const inputTitle = document.getElementById("inputTitle");
+  const inputChar = document.getElementById("inputChar");
+  const inputSynopsis = document.getElementById("inputSynopsis");
+  const inputCircle = document.getElementById("inputCircle");
+  const inputReleaseDate = document.getElementById("inputReleaseDate");
+  const inputR18 = document.getElementById("inputR18");
+  const inputGenre = document.getElementsByName("inputGenre");
+  const inputImage = document.getElementById("inputImage");
+  const inputZoom = document.getElementById("inputZoom");
+  const inputFont = document.getElementById("inputFont");
+  const inputCardColor = document.getElementById("inputCardColor");
+  const inputFontColor = document.getElementById("inputFontColor");
+  const charCountEl = document.getElementById("charCount");
+  const synopsisErrorMsgEl = document.getElementById("synopsisErrorMsg");
+  const btnDownloadSingle = document.getElementById("btnDownloadSingle");
+  const btnClear = document.getElementById("btnClear");
+
+  let dragOffsetX = 0;
+  let dragOffsetY = 0;
+  let uploadedImage = null;
+
+  const PADDING = 20;
+  const IMAGE_AREA_RATIO = 3 / 5;
+  const SYNOPSIS_FONT_SIZE = 13;
+  const SYNOPSIS_LINE_HEIGHT = 18;
+
+  const SYNOPSIS_MAX_CHARS = 140;
+  const SYNOPSIS_MAX_LINES = 6;
+
+  function fontFamily() {
+    return inputFont.value;
+  }
+
+  function selectedGenre() {
+    for (const radio of inputGenre) {
+      if (radio.checked) return radio.value;
+    }
+    return "";
+  }
+
+  function validateSynopsis() {
+    const text = inputSynopsis.value;
+    const overChars = text.length > SYNOPSIS_MAX_CHARS;
+
+    activeCtx.font = SYNOPSIS_FONT_SIZE + "px " + fontFamily();
+    const synopsisMaxWidth = CARD_WIDTH - PADDING * 2;
+    const lines = wrapLines(text, synopsisMaxWidth);
+    const overLines = lines.length > SYNOPSIS_MAX_LINES;
+
+    return {
+      ok: !overChars && !overLines,
+      overChars: overChars,
+      overLines: overLines,
+      lineCount: lines.length
+    };
+  }
+
+  function drawCard() {
+    const cardColor = inputCardColor.value;
+    const fontColor = inputFontColor.value;
+
+    activeCtx.fillStyle = cardColor;
+    activeCtx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
+
+    activeCtx.strokeStyle = "#333";
+    activeCtx.strokeRect(4, 4, CARD_WIDTH - 8, CARD_HEIGHT - 8);
+
+    const imageAreaHeight = CARD_HEIGHT * IMAGE_AREA_RATIO;
+    if (uploadedImage) {
+      const areaX = PADDING / 2;
+      const areaY = PADDING / 2;
+      const areaW = CARD_WIDTH - PADDING;
+      const areaH = imageAreaHeight - PADDING;
+
+      drawImageCover(uploadedImage, areaX, areaY, areaW, areaH, parseFloat(inputZoom.value));
+    } else {
+      activeCtx.fillStyle = "#ddd";
+      activeCtx.fillRect(PADDING / 2, PADDING / 2, CARD_WIDTH - PADDING, imageAreaHeight - PADDING);
+      activeCtx.fillStyle = "#888";
+      activeCtx.font = "14px " + fontFamily();
+      activeCtx.fillText("画像未選択", CARD_WIDTH / 2 - 40, imageAreaHeight / 2);
+    }
+
+    const genre = selectedGenre();
+    if (genre) {
+      drawGenreBadge(genre, PADDING / 2 + 8, PADDING / 2 + 8, cardColor, fontColor);
+    }
+
+    if (inputReleaseDate.value.trim() !== "") {
+      activeCtx.save();
+      activeCtx.font = "10px " + fontFamily();
+      activeCtx.fillStyle = fontColor;
+      activeCtx.textAlign = "right";
+      activeCtx.fillText("発行年月日：" + inputReleaseDate.value.trim(), CARD_WIDTH - PADDING, imageAreaHeight + 2);
+      activeCtx.restore();
+    }
+
+    const titleY = imageAreaHeight + 30;
+    const charNameY = titleY + 28;
+    const synopsisStartY = charNameY + 30;
+    const circleY = CARD_HEIGHT - PADDING;
+
+    activeCtx.fillStyle = fontColor;
+    activeCtx.font = "bold 20px " + fontFamily();
+    activeCtx.fillText(inputTitle.value, PADDING, titleY, CARD_WIDTH - PADDING - 70);
+
+    activeCtx.font = "14px " + fontFamily();
+    activeCtx.fillStyle = fontColor;
+    activeCtx.fillText(inputChar.value, PADDING, charNameY, CARD_WIDTH - PADDING - 70);
+
+    if (inputR18.checked) {
+      drawR18Badge(CARD_WIDTH - PADDING - 50, titleY - 24, 50, 44);
+    }
+
+    const validation = validateSynopsis();
+    activeCtx.font = SYNOPSIS_FONT_SIZE + "px " + fontFamily();
+    const synopsisMaxWidth = CARD_WIDTH - PADDING * 2;
+
+    if (validation.ok) {
+      activeCtx.fillStyle = fontColor;
+      const lines = wrapLines(inputSynopsis.value, synopsisMaxWidth);
+      lines.forEach(function (line, i) {
+        activeCtx.fillText(line, PADDING, synopsisStartY + i * SYNOPSIS_LINE_HEIGHT);
+      });
+    } else {
+      activeCtx.fillStyle = "#c0392b";
+      activeCtx.font = "bold 13px " + fontFamily();
+      activeCtx.fillText("⚠ あらすじが上限を超えています", PADDING, synopsisStartY);
+      activeCtx.font = "12px " + fontFamily();
+      activeCtx.fillText("(140文字・6行以内に収めてください)", PADDING, synopsisStartY + SYNOPSIS_LINE_HEIGHT);
+    }
+
+    activeCtx.font = "13px " + fontFamily();
+    activeCtx.fillStyle = fontColor;
+    activeCtx.textAlign = "right";
+    activeCtx.fillText("サークル: " + inputCircle.value, CARD_WIDTH - PADDING, circleY);
+    activeCtx.textAlign = "left";
+  }
+
+  function drawR18Badge(x, y, w, h) {
+    activeCtx.save();
+    activeCtx.fillStyle = "#fff";
+    activeCtx.fillRect(x, y, w, h);
+
+    activeCtx.strokeStyle = "#c0392b";
+    activeCtx.lineWidth = 2;
+    activeCtx.strokeRect(x, y, w, h);
+    activeCtx.fillStyle = "#c0392b";
+    activeCtx.font = "bold 18px sans-serif";
+    activeCtx.textAlign = "center";
+    activeCtx.textBaseline = "middle";
+    activeCtx.fillText("R18", x + w / 2, y + h / 2);
+    activeCtx.restore();
+  }
+
+  function drawGenreBadge(text, x, y, bgColor, textColor) {
+    activeCtx.save();
+    activeCtx.font = "bold 13px " + fontFamily();
+    const textWidth = activeCtx.measureText(text).width;
+    const padX = 8;
+    const padY = 5;
+    const boxW = textWidth + padX * 2;
+    const boxH = 13 + padY * 2;
+
+    activeCtx.fillStyle = bgColor;
+    activeCtx.fillRect(x, y, boxW, boxH);
+    activeCtx.strokeStyle = textColor;
+    activeCtx.lineWidth = 1;
+    activeCtx.strokeRect(x, y, boxW, boxH);
+
+    activeCtx.fillStyle = textColor;
+    activeCtx.textAlign = "left";
+    activeCtx.textBaseline = "middle";
+    activeCtx.fillText(text, x + padX, y + boxH / 2 + 1);
+    activeCtx.restore();
+  }
+
+  function getCoverScale(img, areaW, areaH) {
+    return Math.max(areaW / img.width, areaH / img.height);
+  }
+
+  function drawImageCover(img, areaX, areaY, areaW, areaH, zoom) {
+    const scale = getCoverScale(img, areaW, areaH) * zoom;
+    const drawW = img.width * scale;
+    const drawH = img.height * scale;
+
+    let drawX = areaX + (areaW - drawW) / 2 + dragOffsetX;
+    let drawY = areaY + (areaH - drawH) / 2 + dragOffsetY;
+
+    if (drawW > areaW) {
+      const minX = areaX + areaW - drawW;
+      const maxX = areaX;
+      drawX = Math.max(minX, Math.min(maxX, drawX));
+    }
+    if (drawH > areaH) {
+      const minY = areaY + areaH - drawH;
+      const maxY = areaY;
+      drawY = Math.max(minY, Math.min(maxY, drawY));
+    }
+
+    activeCtx.save();
+    activeCtx.beginPath();
+    activeCtx.rect(areaX, areaY, areaW, areaH);
+    activeCtx.clip();
+    activeCtx.drawImage(img, drawX, drawY, drawW, drawH);
+    activeCtx.restore();
+  }
+
+  function wrapLines(text, maxWidth) {
+    const lines = [];
+    const paragraphs = text.split("\n");
+
+    paragraphs.forEach(function (paragraph) {
+      let line = "";
+      for (let i = 0; i < paragraph.length; i++) {
+        const testLine = line + paragraph[i];
+        if (activeCtx.measureText(testLine).width > maxWidth && line !== "") {
+          lines.push(line);
+          line = paragraph[i];
+        } else {
+          line = testLine;
+        }
+      }
+      lines.push(line);
+    });
+
+    return lines;
+  }
+
+  function updateCharCount() {
+    const validation = validateSynopsis();
+    const currentLength = inputSynopsis.value.length;
+
+    charCountEl.textContent = currentLength + " / " + SYNOPSIS_MAX_CHARS + " 文字"
+      + "(" + validation.lineCount + " / " + SYNOPSIS_MAX_LINES + " 行)";
+    charCountEl.classList.toggle("over", !validation.ok);
+
+    inputSynopsis.classList.toggle("error", !validation.ok);
+    synopsisErrorMsgEl.style.display = validation.ok ? "none" : "block";
+  }
+
+  inputImage.addEventListener("change", function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function (event) {
+      const img = new Image();
+      img.onload = function () {
+        uploadedImage = img;
+        dragOffsetX = 0;
+        dragOffsetY = 0;
+        drawCard();
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  [inputTitle, inputChar, inputCircle, inputReleaseDate, inputR18, inputZoom, inputCardColor, inputFontColor].forEach(function (el) {
+    el.addEventListener("input", drawCard);
+  });
+  inputGenre.forEach(function (el) {
+    el.addEventListener("change", drawCard);
+  });
+
+  inputFont.addEventListener("change", function () {
+    const family = fontFamily();
+    document.fonts.load("20px " + family).then(function () {
+      drawCard();
+    }).catch(function () {
+      drawCard();
+    });
+  });
+  inputSynopsis.addEventListener("input", function () {
+    updateCharCount();
+    drawCard();
+  });
+
+  btnClear.addEventListener("click", function () {
+    if (!confirm("入力内容をすべてクリアしますか？")) return;
+
+    inputTitle.value = "";
+    inputChar.value = "";
+    inputSynopsis.value = "";
+    inputCircle.value = "";
+    inputReleaseDate.value = "";
+    
+    inputGenre[0].checked = true;
+    inputR18.checked = false;
+
+    inputImage.value = "";
+    uploadedImage = null;
+    dragOffsetX = 0;
+    dragOffsetY = 0;
+
+    inputZoom.value = 1;
+    inputFont.selectedIndex = 0;
+    inputCardColor.value = "#ffffff";
+    inputFontColor.value = "#222222";
+
+    updateCharCount();
+    drawCard();
+  });
+
+  let isDragging = false;
+  let lastX = 0;
+  let lastY = 0;
+
+  function startDrag(x, y) {
+    if (!uploadedImage) return;
+    isDragging = true;
+    lastX = x;
+    lastY = y;
+    canvas.classList.add("dragging");
+  }
+
+  function moveDrag(x, y) {
+    if (!isDragging || !uploadedImage) return;
+    const dx = x - lastX;
+    const dy = y - lastY;
+    lastX = x;
+    lastY = y;
+
+    const scaleX = canvas.width / canvas.clientWidth;
+    const scaleY = canvas.height / canvas.clientHeight;
+
+    dragOffsetX += dx * scaleX;
+    dragOffsetY += dy * scaleY;
+    drawCard();
+  }
+
+  function endDrag() {
+    isDragging = false;
+    canvas.classList.remove("dragging");
+  }
+
+  canvas.addEventListener("mousedown", (e) => startDrag(e.clientX, e.clientY));
+  window.addEventListener("mousemove", (e) => moveDrag(e.clientX, e.clientY));
+  window.addEventListener("mouseup", endDrag);
+
+  function isTouchInImageArea(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleY = canvas.height / rect.height;
+    const yInCanvas = (clientY - rect.top) * scaleY;
+    return yInCanvas >= 0 && yInCanvas <= CARD_HEIGHT * IMAGE_AREA_RATIO;
+  }
+
+  let touchMode = null;
+  let scrollLastY = 0;
+
+  canvas.addEventListener("touchstart", (e) => {
+    const t = e.touches[0];
+    if (uploadedImage && isTouchInImageArea(t.clientX, t.clientY)) {
+      touchMode = "drag";
+      startDrag(t.clientX, t.clientY);
+    } else {
+      touchMode = "scroll";
+      scrollLastY = t.clientY;
+    }
+  }, { passive: false });
+
+  window.addEventListener("touchmove", (e) => {
+    if (!touchMode) return;
+    e.preventDefault();
+    const t = e.touches[0];
+    if (touchMode === "drag") {
+      moveDrag(t.clientX, t.clientY);
+    } else if (touchMode === "scroll") {
+      const dy = scrollLastY - t.clientY;
+      window.scrollBy(0, dy);
+      scrollLastY = t.clientY;
+    }
+  }, { passive: false });
+
+  function endTouch() {
+    touchMode = null;
+    endDrag();
+  }
+  window.addEventListener("touchend", endTouch);
+  window.addEventListener("touchcancel", endTouch);
+
+  const EXPORT_SCALE = 4.4;
+
+  function downloadCanvasAsPng(targetCanvas, filename) {
+    targetCanvas.toBlob(function (blob) {
+      if (!blob) {
+        alert("画像の生成に失敗しました。「画像を表示して保存」をお試しください。");
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // 直後に解放するとAndroid等でダウンロードが始まらないことがあるため、十分待ってから解放
+      setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+    }, "image/png");
+  }
+
+  // 長押し保存用：画像を表示するオーバーレイ
+  const saveOverlay = document.getElementById("saveOverlay");
+  const saveOverlayImg = document.getElementById("saveOverlayImg");
+  let overlayUrl = null;
+
+  function closeOverlay() {
+    saveOverlay.style.display = "none";
+    saveOverlayImg.removeAttribute("src");
+    if (overlayUrl) {
+      URL.revokeObjectURL(overlayUrl);
+      overlayUrl = null;
+    }
+  }
+
+  function showImageForSave() {
+    // 端末負荷を抑えるため、長押し保存用は少し小さめ(約2.2倍)で生成
+    const exportCanvas = renderExportCanvas(2.2);
+    exportCanvas.toBlob(function (blob) {
+      if (!blob) {
+        saveOverlayImg.src = exportCanvas.toDataURL("image/png");
+      } else {
+        overlayUrl = URL.createObjectURL(blob);
+        saveOverlayImg.src = overlayUrl;
+      }
+      saveOverlay.style.display = "block";
+      saveOverlay.scrollTop = 0;
+    }, "image/png");
+  }
+
+  function renderExportCanvas(scale) {
+    const sc = scale || EXPORT_SCALE;
+    const exportCanvas = document.createElement("canvas");
+    exportCanvas.width = Math.round(CARD_WIDTH * sc);
+    exportCanvas.height = Math.round(CARD_HEIGHT * sc);
+    const exportCtx = exportCanvas.getContext("2d");
+    exportCtx.scale(sc, sc);
+
+    const previousActiveCtx = activeCtx;
+    activeCtx = exportCtx;
+    drawCard();
+    activeCtx = previousActiveCtx;
+
+    return exportCanvas;
+  }
+
+  btnDownloadSingle.addEventListener("click", function () {
+    const exportCanvas = renderExportCanvas();
+    downloadCanvasAsPng(exportCanvas, (inputTitle.value || "あらすじカード") + ".png");
+  });
+
+  document.getElementById("btnShowImage").addEventListener("click", showImageForSave);
+  document.getElementById("btnCloseOverlay").addEventListener("click", closeOverlay);
+
+  updateCharCount();
+  document.fonts.ready.then(function () {
+    drawCard();
+  });
+  drawCard();
+</script>
+
+</body>
+</html>
