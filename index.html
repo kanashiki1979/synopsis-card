@@ -161,6 +161,48 @@
     cursor: default;
   }
 
+  #saveHelp {
+    font-size: 12px;
+    color: #888;
+    margin: 0;
+    line-height: 1.6;
+  }
+  #saveOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 1000;
+    overflow-y: auto;
+    padding: 16px;
+    box-sizing: border-box;
+    text-align: center;
+  }
+  #saveOverlay p {
+    color: #fff;
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 8px 0 12px;
+  }
+  #saveOverlay img {
+    max-width: 100%;
+    height: auto;
+    background: #fff;
+    -webkit-touch-callout: default;
+    -webkit-user-select: auto;
+    user-select: auto;
+  }
+  #saveOverlay button {
+    margin: 12px 0;
+    padding: 10px 24px;
+    font-size: 14px;
+    border: 1px solid #fff;
+    background: transparent;
+    color: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
   footer {
     width: 100%;
     box-sizing: border-box;
@@ -288,7 +330,16 @@
 
     <div id="download-area" style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
       <button id="btnDownloadSingle" type="button">カード画像をダウンロード(PNG)</button>
+      <button id="btnShowImage" type="button">保存できないとき：画像を表示して保存</button>
+      <p id="saveHelp">ダウンロードできない場合は下のボタンで画像を表示し、画像を長押しして「画像をダウンロード」や「画像を保存」を選んでください。</p>
     </div>
+  </div>
+
+  <div id="saveOverlay">
+    <p>画像を長押しして「画像をダウンロード」（または「画像を保存」）を選んでください。</p>
+    <img id="saveOverlayImg" alt="あらすじカード">
+    <br>
+    <button type="button" id="btnCloseOverlay">閉じる</button>
   </div>
 
   <footer>あらすじカード作成ツール　｜　<a href="https://kanashiki1979.github.io/terms/" target="_blank" rel="noopener">制作・イベント支援ツール</a>　｜　<a href="https://github.com/kanashiki1979/terms" target="_blank" rel="noopener">利用規約・免責事項</a></footer>
@@ -688,7 +739,10 @@
 
   function downloadCanvasAsPng(targetCanvas, filename) {
     targetCanvas.toBlob(function (blob) {
-      if (!blob) return;
+      if (!blob) {
+        alert("画像の生成に失敗しました。「画像を表示して保存」をお試しください。");
+        return;
+      }
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -696,16 +750,47 @@
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // 直後に解放するとAndroid等でダウンロードが始まらないことがあるため、十分待ってから解放
+      setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
     }, "image/png");
   }
 
-  function renderExportCanvas() {
+  // 長押し保存用：画像を表示するオーバーレイ
+  const saveOverlay = document.getElementById("saveOverlay");
+  const saveOverlayImg = document.getElementById("saveOverlayImg");
+  let overlayUrl = null;
+
+  function closeOverlay() {
+    saveOverlay.style.display = "none";
+    saveOverlayImg.removeAttribute("src");
+    if (overlayUrl) {
+      URL.revokeObjectURL(overlayUrl);
+      overlayUrl = null;
+    }
+  }
+
+  function showImageForSave() {
+    // 端末負荷を抑えるため、長押し保存用は少し小さめ(約2.2倍)で生成
+    const exportCanvas = renderExportCanvas(2.2);
+    exportCanvas.toBlob(function (blob) {
+      if (!blob) {
+        saveOverlayImg.src = exportCanvas.toDataURL("image/png");
+      } else {
+        overlayUrl = URL.createObjectURL(blob);
+        saveOverlayImg.src = overlayUrl;
+      }
+      saveOverlay.style.display = "block";
+      saveOverlay.scrollTop = 0;
+    }, "image/png");
+  }
+
+  function renderExportCanvas(scale) {
+    const sc = scale || EXPORT_SCALE;
     const exportCanvas = document.createElement("canvas");
-    exportCanvas.width = CARD_WIDTH * EXPORT_SCALE;
-    exportCanvas.height = CARD_HEIGHT * EXPORT_SCALE;
+    exportCanvas.width = Math.round(CARD_WIDTH * sc);
+    exportCanvas.height = Math.round(CARD_HEIGHT * sc);
     const exportCtx = exportCanvas.getContext("2d");
-    exportCtx.scale(EXPORT_SCALE, EXPORT_SCALE);
+    exportCtx.scale(sc, sc);
 
     const previousActiveCtx = activeCtx;
     activeCtx = exportCtx;
@@ -719,6 +804,9 @@
     const exportCanvas = renderExportCanvas();
     downloadCanvasAsPng(exportCanvas, (inputTitle.value || "あらすじカード") + ".png");
   });
+
+  document.getElementById("btnShowImage").addEventListener("click", showImageForSave);
+  document.getElementById("btnCloseOverlay").addEventListener("click", closeOverlay);
 
   updateCharCount();
   document.fonts.ready.then(function () {
